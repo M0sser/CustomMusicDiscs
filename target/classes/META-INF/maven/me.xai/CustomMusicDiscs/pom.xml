@@ -1,0 +1,88 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>me.xai</groupId>
+  <artifactId>CustomMusicDiscs</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
+  </properties>
+
+  <!-- 1️⃣  Tell Maven where to look -->
+  <repositories>
+    <!-- PaperMC repo -->
+    <repository>
+      <id>papermc</id>
+      <url>https://repo.papermc.io/repository/maven-public/</url>
+    </repository>
+    <!-- JitPack for NewPipe -->
+    <repository>
+	 <id>jitpack.io</id>
+     <url>https://jitpack.io</url>
+	</repository>
+  </repositories>
+  
+  <!-- 2️⃣  List of libraries we need -->
+  <dependencies>
+    <!-- Paper / Spigot API -->
+    <dependency>
+      <groupId>io.papermc.paper</groupId>
+      <artifactId>paper-api</artifactId>
+      <version>1.21-R0.1-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+
+	<!-- NewPipe Extractor v0.24.6 -->
+	<dependency>
+    	<groupId>com.github.teamnewpipe.NewPipeExtractor</groupId>
+    	<artifactId>extractor</artifactId>
+    	<version>v0.24.6</version>   <!-- keep the leading 'v' -->
+	</dependency>
+    <!-- JAVE2 core + native binaries (pick ONE native jar) -->
+    <dependency>
+      <groupId>ws.schild</groupId>
+      <artifactId>jave-core</artifactId>
+      <version>3.3.1</version>
+    </dependency>
+    <dependency>
+      <groupId>ws.schild</groupId>
+      <artifactId>jave-nativebin-win64</artifactId> <!-- or linux64 / osx64 -->
+      <version>3.3.1</version>
+    </dependency>
+  </dependencies>
+
+  <!-- 3️⃣  Shade everything into the final plugin jar -->
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <relocations>
+                <relocation>
+                  <pattern>org.schabi.newpipe</pattern>
+                  <shadedPattern>me.xai.shaded.newpipe</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>ws.schild</pattern>
+                  <shadedPattern>me.xai.shaded.jave</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

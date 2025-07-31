@@ -1,0 +1,17 @@
+name: CustomMusicDiscs
+main: me.xai.custommusicdiscs.CustomMusicDiscs
+version: 1.0.0
+api-version: 1.21
+commands:
+  rewrite:
+    description: Rewrite a disc with a temporary YouTube track
+    usage: /rewrite <YouTube URL>
+  rewriteperm:
+    description: Rewrite a disc with a permanent track
+    usage: /rewriteperm <YouTube URL>
+  reloadlimited:
+    description: Reload the limited-use resource pack
+    usage: /reloadlimited
+  reloadpermanent:
+    description: Reload the permanent-use resource pack
+    usage: /reloadpermanent
