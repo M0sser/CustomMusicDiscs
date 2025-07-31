@@ -23,6 +23,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Request;
 import org.schabi.newpipe.extractor.downloader.Response;
@@ -33,7 +34,7 @@ import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import ws.schild.jave.Encoder;
 import ws.schild.jave.MultimediaObject;
 import ws.schild.jave.encode.AudioAttributes;
-import ws.schild.jave.EncodingAttributes;
+import ws.schild.jave.encode.EncodingAttributes;
 
 
 import java.io.*;
@@ -404,7 +405,7 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 	    /* ------------------------------------------------------------------ */
 
 	    private void downloadAndConvert(String youtubeUrl, Path targetOgg) throws Exception {
-	    	StreamingService yt = NewPipe.getService(YoutubeService.getServiceId());
+                StreamingService yt = NewPipe.getService(ServiceList.YouTube.getServiceId());
 	        StreamExtractor extractor = yt.getStreamExtractor(youtubeUrl);
 	        extractor.fetchPage();
 	        List<AudioStream> audioStreams = extractor.getAudioStreams();
@@ -461,10 +462,20 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 	            conn.setInstanceFollowRedirects(true);
 	            conn.setRequestProperty("User-Agent", "Mozilla/5.0 CustomMusicDiscs");
 	            req.headers().forEach((k,v)-> conn.setRequestProperty(k, String.join(";", v)));
-	            int code = conn.getResponseCode();
-	            InputStream is = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
-	            byte[] body = is != null ? is.readAllBytes() : new byte[0];
-	            return new Response(code, body, conn.getContentType());
+                    byte[] send = req.dataToSend();
+                    if (send != null) {
+                        conn.setDoOutput(true);
+                        try (OutputStream os = conn.getOutputStream()) {
+                            os.write(send);
+                        }
+                    }
+
+                    int code = conn.getResponseCode();
+                    String message = conn.getResponseMessage();
+                    InputStream is = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
+                    String body = "";
+                    if (is != null) body = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                    return new Response(code, message, conn.getHeaderFields(), body, conn.getURL().toString());
 
 	             }
 	        }
@@ -476,7 +487,7 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 
 	    private String extractorFriendlyName(String url) {
 	        try {
-	            StreamingService yt = NewPipe.getService(YoutubeService.ID);
+                    StreamingService yt = NewPipe.getService(ServiceList.YouTube.getServiceId());
 	            StreamExtractor se  = yt.getStreamExtractor(url);
 	            se.fetchPage();
 	            return se.getName();
