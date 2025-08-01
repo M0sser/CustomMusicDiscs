@@ -169,13 +169,13 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 
 	    private void initHttpServer() {
 	        try {
-	            httpServer = HttpServer.create(new InetSocketAddress(25594), 0);
+                httpServer = HttpServer.create(new InetSocketAddress(5523), 0);
 	            httpServer.createContext("/limited",   new PackHandler(zipLimited));
 	            httpServer.createContext("/permanent", new PackHandler(zipPermanent));
 	            httpServer.setExecutor(Executors.newCachedThreadPool());
 	            httpServer.start();
-	            packUrlLimited   = "http://" + serverIp + ":25594/limited";
-	            packUrlPermanent = "http://" + serverIp + ":25594/permanent";
+                    packUrlLimited   = "http://" + serverIp + ":5523/limited";
+                    packUrlPermanent = "http://" + serverIp + ":5523/permanent";
 	        } catch (IOException ex) {
 	            getLogger().log(Level.SEVERE, "HTTP server", ex);
 	        }
@@ -424,9 +424,9 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 	        aa.setBitRate(160_000);
 	        aa.setChannels(2);
 	        aa.setSamplingRate(44_100);
-	        EncodingAttributes ea = new EncodingAttributes();
-	        ea.setFormat("ogg");
-	        ea.setAudioAttributes(aa);
+                EncodingAttributes ea = new EncodingAttributes();
+                ea.setOutputFormat("ogg");
+                ea.setAudioAttributes(aa);
 	        new Encoder().encode(new MultimediaObject(temp.toFile()), targetOgg.toFile(), ea);
 	        Files.deleteIfExists(temp);
 	    }
