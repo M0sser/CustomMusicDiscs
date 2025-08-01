@@ -460,7 +460,12 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 	            conn.setConnectTimeout(TIMEOUT);
 	            conn.setReadTimeout(TIMEOUT);
 	            conn.setInstanceFollowRedirects(true);
-	            conn.setRequestProperty("User-Agent", "Mozilla/5.0 CustomMusicDiscs");
+                    conn.setRequestProperty(
+                            "User-Agent",
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                            "Chrome/124.0.0.0 Safari/537.36");
+                    conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
 	            req.headers().forEach((k,v)-> conn.setRequestProperty(k, String.join(";", v)));
                     byte[] send = req.dataToSend();
                     if (send != null) {
