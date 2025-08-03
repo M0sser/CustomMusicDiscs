@@ -27,10 +27,14 @@ import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Request;
 import org.schabi.newpipe.extractor.downloader.Response;
+import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeService;
 import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.StreamExtractor;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 import ws.schild.jave.Encoder;
 import ws.schild.jave.MultimediaObject;
 import ws.schild.jave.encode.AudioAttributes;
@@ -94,10 +98,11 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
             private static final int HTTP_PORT = 5523;
 
             /* --- NEW ---------------------------------------------------------------- */
-	    private final ExecutorService downloadPool = Executors.newFixedThreadPool(3);
-	    private static final Pattern YT_URL = Pattern.compile(
-	            "^(?:https?://)?(?:www\\.)?(?:youtube\\.com/watch\\?v=|youtu\\.be/)[\\w-]{11}.*$",
-	            Pattern.CASE_INSENSITIVE);
+            private final ExecutorService downloadPool = Executors.newFixedThreadPool(3);
+            private static final Pattern YT_URL = Pattern.compile(
+                    "^(?:https?://)?(?:www\\.)?(?:youtube\\.com/watch\\?v=|youtu\\.be/)[\\w-]{11}.*$",
+                    Pattern.CASE_INSENSITIVE);
+            private static final Pattern YT_ID_PATTERN = Pattern.compile("(?<=v=)[^&]+|(?<=be/)[^?&]+", Pattern.CASE_INSENSITIVE);
 
 	    /* ------------------------------------------------------------------ */
 	    /* LIFECYCLE                                                          */
@@ -408,32 +413,64 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 	    /* DOWNLOAD + CONVERT                                                  */
 	    /* ------------------------------------------------------------------ */
 
-	    private void downloadAndConvert(String youtubeUrl, Path targetOgg) throws Exception {
-                StreamingService yt = NewPipe.getService(ServiceList.YouTube.getServiceId());
-	        StreamExtractor extractor = yt.getStreamExtractor(youtubeUrl);
-	        extractor.fetchPage();
-	        List<AudioStream> audioStreams = extractor.getAudioStreams();
-	        if (audioStreams.isEmpty()) throw new IllegalStateException("No audio streams found");
-	        AudioStream best = audioStreams.stream().max(Comparator.comparingInt(AudioStream::getAverageBitrate)).orElseThrow();
+            private void downloadAndConvert(String youtubeUrl, Path targetOgg) throws Exception {
+                String audioUrl;
+                String suffix;
+                try {
+                    StreamingService yt = NewPipe.getService(ServiceList.YouTube.getServiceId());
+                    StreamExtractor extractor = yt.getStreamExtractor(youtubeUrl);
+                    extractor.fetchPage();
+                    List<AudioStream> audioStreams = extractor.getAudioStreams();
+                    if (audioStreams.isEmpty()) throw new IllegalStateException("No audio streams found");
+                    AudioStream best = audioStreams.stream()
+                            .max(Comparator.comparingInt(AudioStream::getAverageBitrate))
+                            .orElseThrow();
+                    audioUrl = best.getUrl();
+                    suffix   = best.getFormat().getSuffix();
+                } catch (ContentNotAvailableException ex) {
+                    getLogger().info("Falling back to Piped: " + ex.getMessage());
+                    String id = extractYoutubeId(youtubeUrl);
+                    URL api = new URL("https://piped.video/streams/" + id);
+                    String json;
+                    try (InputStream in = api.openStream()) {
+                        json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                    }
+                    JSONArray arr = new JSONObject(json).getJSONArray("audioStreams");
+                    if (arr.isEmpty()) throw new IllegalStateException("No audio streams found via Piped");
+                    JSONObject best = arr.getJSONObject(0);
+                    for (int i = 1; i < arr.length(); i++) {
+                        JSONObject s = arr.getJSONObject(i);
+                        if (s.optInt("bitrate", 0) > best.optInt("bitrate", 0)) best = s;
+                    }
+                    audioUrl = best.getString("url");
+                    suffix   = best.optString("format", best.optString("container", "m4a"));
+                }
 
-	        // download
-	        Path temp = Files.createTempFile("cmd_dl", "." + best.getFormat().getSuffix());
-	        try (InputStream in = new URL(best.getUrl()).openStream(); OutputStream out = Files.newOutputStream(temp, StandardOpenOption.WRITE)) {
-	            in.transferTo(out);
-	        }
+                // download
+                Path temp = Files.createTempFile("cmd_dl", "." + suffix);
+                try (InputStream in = new URL(audioUrl).openStream();
+                     OutputStream out = Files.newOutputStream(temp, StandardOpenOption.WRITE)) {
+                    in.transferTo(out);
+                }
 
-	        // convert via FFmpeg (JAVE2)
-	        AudioAttributes aa = new AudioAttributes();
-	        aa.setCodec("libvorbis");
-	        aa.setBitRate(160_000);
-	        aa.setChannels(2);
-	        aa.setSamplingRate(44_100);
+                // convert via FFmpeg (JAVE2)
+                AudioAttributes aa = new AudioAttributes();
+                aa.setCodec("libvorbis");
+                aa.setBitRate(160_000);
+                aa.setChannels(2);
+                aa.setSamplingRate(44_100);
                 EncodingAttributes ea = new EncodingAttributes();
                 ea.setOutputFormat("ogg");
                 ea.setAudioAttributes(aa);
-	        new Encoder().encode(new MultimediaObject(temp.toFile()), targetOgg.toFile(), ea);
-	        Files.deleteIfExists(temp);
-	    }
+                new Encoder().encode(new MultimediaObject(temp.toFile()), targetOgg.toFile(), ea);
+                Files.deleteIfExists(temp);
+            }
+
+            private String extractYoutubeId(String url) {
+                var m = YT_ID_PATTERN.matcher(url);
+                if (m.find()) return m.group();
+                throw new IllegalArgumentException("Invalid YouTube URL");
+            }
 
 	    /* ------------------------------------------------------------------ */
 	    /* MINI HTTP HANDLER                                                   */
