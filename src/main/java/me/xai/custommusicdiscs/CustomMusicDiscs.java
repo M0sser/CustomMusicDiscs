@@ -89,9 +89,11 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 	    private long lastReloadLimited;
 	    private long lastReloadPermanent;
 
-	    private static boolean NEWPIPE_READY = false;
+            private static boolean NEWPIPE_READY = false;
 
-	    /* --- NEW ---------------------------------------------------------------- */
+            private static final int HTTP_PORT = 5523;
+
+            /* --- NEW ---------------------------------------------------------------- */
 	    private final ExecutorService downloadPool = Executors.newFixedThreadPool(3);
 	    private static final Pattern YT_URL = Pattern.compile(
 	            "^(?:https?://)?(?:www\\.)?(?:youtube\\.com/watch\\?v=|youtu\\.be/)[\\w-]{11}.*$",
@@ -167,19 +169,20 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 	        }
 	    }
 
-	    private void initHttpServer() {
-	        try {
-	            httpServer = HttpServer.create(new InetSocketAddress(25594), 0);
-	            httpServer.createContext("/limited",   new PackHandler(zipLimited));
-	            httpServer.createContext("/permanent", new PackHandler(zipPermanent));
-	            httpServer.setExecutor(Executors.newCachedThreadPool());
-	            httpServer.start();
-	            packUrlLimited   = "http://" + serverIp + ":25594/limited";
-	            packUrlPermanent = "http://" + serverIp + ":25594/permanent";
-	        } catch (IOException ex) {
-	            getLogger().log(Level.SEVERE, "HTTP server", ex);
-	        }
-	    }
+            private void initHttpServer() {
+                try {
+                    httpServer = HttpServer.create(new InetSocketAddress(HTTP_PORT), 0);
+                    httpServer.createContext("/limited",   new PackHandler(zipLimited));
+                    httpServer.createContext("/permanent", new PackHandler(zipPermanent));
+                    httpServer.setExecutor(Executors.newCachedThreadPool());
+                    httpServer.start();
+                    packUrlLimited   = "http://" + serverIp + ":" + HTTP_PORT + "/limited";
+                    packUrlPermanent = "http://" + serverIp + ":" + HTTP_PORT + "/permanent";
+                    getLogger().info("HTTP server started on port " + HTTP_PORT);
+                } catch (IOException ex) {
+                    getLogger().log(Level.SEVERE, "HTTP server", ex);
+                }
+            }
 
 	    private void registerCommandsAndEvents() {
 	        getServer().getPluginManager().registerEvents(this, this);
@@ -424,9 +427,9 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 	        aa.setBitRate(160_000);
 	        aa.setChannels(2);
 	        aa.setSamplingRate(44_100);
-	        EncodingAttributes ea = new EncodingAttributes();
-	        ea.setFormat("ogg");
-	        ea.setAudioAttributes(aa);
+                EncodingAttributes ea = new EncodingAttributes();
+                ea.setOutputFormat("ogg");
+                ea.setAudioAttributes(aa);
 	        new Encoder().encode(new MultimediaObject(temp.toFile()), targetOgg.toFile(), ea);
 	        Files.deleteIfExists(temp);
 	    }
@@ -460,7 +463,12 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 	            conn.setConnectTimeout(TIMEOUT);
 	            conn.setReadTimeout(TIMEOUT);
 	            conn.setInstanceFollowRedirects(true);
-	            conn.setRequestProperty("User-Agent", "Mozilla/5.0 CustomMusicDiscs");
+                    conn.setRequestProperty(
+                            "User-Agent",
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                            "Chrome/124.0.0.0 Safari/537.36");
+                    conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
 	            req.headers().forEach((k,v)-> conn.setRequestProperty(k, String.join(";", v)));
                     byte[] send = req.dataToSend();
                     if (send != null) {
