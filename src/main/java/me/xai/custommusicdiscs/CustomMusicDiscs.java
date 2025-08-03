@@ -430,6 +430,7 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
                 } catch (ContentNotAvailableException ex) {
                     getLogger().info("Falling back to Piped: " + ex.getMessage());
                     String id = extractYoutubeId(youtubeUrl);
+                  
                     URL api = new URL("https://piped.video/api/v1/streams/" + id);
                     HttpURLConnection conn = (HttpURLConnection) api.openConnection();
                     conn.setRequestProperty("User-Agent", "Mozilla/5.0");
@@ -443,6 +444,7 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
                         throw new IOException("Piped HTTP " + status + ": " + json);
                     if (!json.trim().startsWith("{"))
                         throw new IOException("Unexpected Piped response: " + json);
+
                     JSONArray arr = new JSONObject(json).getJSONArray("audioStreams");
                     if (arr.isEmpty()) throw new IllegalStateException("No audio streams found via Piped");
                     JSONObject best = arr.getJSONObject(0);
