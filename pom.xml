@@ -42,8 +42,13 @@
 	<dependency>
     	<groupId>com.github.teamnewpipe.NewPipeExtractor</groupId>
     	<artifactId>extractor</artifactId>
-    	<version>v0.24.6</version>   <!-- keep the leading 'v' -->
-	</dependency>
+        <version>v0.24.6</version>   <!-- keep the leading 'v' -->
+        </dependency>
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20240303</version>
+    </dependency>
     <!-- JAVE2 core + native binaries (pick ONE native jar) -->
     <dependency>
       <groupId>ws.schild</groupId>
@@ -77,6 +82,10 @@
                 <relocation>
                   <pattern>ws.schild</pattern>
                   <shadedPattern>me.xai.shaded.jave</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.json</pattern>
+                  <shadedPattern>me.xai.shaded.json</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
