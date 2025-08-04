@@ -418,8 +418,9 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
 	    /* ------------------------------------------------------------------ */
 
             private void downloadAndConvert(String youtubeUrl, Path targetOgg) throws Exception {
-                String audioUrl;
-                String suffix;
+                String audioUrl = null;
+                String suffix   = null;
+
                 try {
                     StreamingService yt = NewPipe.getService(ServiceList.YouTube.getServiceId());
                     StreamExtractor extractor = yt.getStreamExtractor(youtubeUrl);
@@ -465,8 +466,9 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
                             last = e;
                         }
                     }
-                    if (audioUrl == null) throw last != null ? last : new IOException("Piped fallback failed");
 
+                    if (audioUrl == null || suffix == null)
+                        throw last != null ? last : new IOException("Piped fallback failed");
                 }
 
                 // download
