@@ -103,6 +103,10 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
                     "^(?:https?://)?(?:www\\.)?(?:youtube\\.com/watch\\?v=|youtu\\.be/)[\\w-]{11}.*$",
                     Pattern.CASE_INSENSITIVE);
             private static final Pattern YT_ID_PATTERN = Pattern.compile("(?<=v=)[^&]+|(?<=be/)[^?&]+", Pattern.CASE_INSENSITIVE);
+            private static final String[] PIPED_BASES = {
+                    "https://pipedapi.kavin.rocks",
+                    "https://piped.video/api/v1"
+            };
 
 	    /* ------------------------------------------------------------------ */
 	    /* LIFECYCLE                                                          */
@@ -430,30 +434,39 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
                 } catch (ContentNotAvailableException ex) {
                     getLogger().info("Falling back to Piped: " + ex.getMessage());
                     String id = extractYoutubeId(youtubeUrl);
-                  
-                    URL api = new URL("https://piped.video/api/v1/streams/" + id);
-                    HttpURLConnection conn = (HttpURLConnection) api.openConnection();
-                    conn.setRequestProperty("User-Agent", "Mozilla/5.0");
-                    conn.setRequestProperty("Accept", "application/json");
-                    int status = conn.getResponseCode();
-                    InputStream resp = status == HttpURLConnection.HTTP_OK
-                            ? conn.getInputStream()
-                            : conn.getErrorStream();
-                    String json = new String(resp.readAllBytes(), StandardCharsets.UTF_8);
-                    if (status != HttpURLConnection.HTTP_OK)
-                        throw new IOException("Piped HTTP " + status + ": " + json);
-                    if (!json.trim().startsWith("{"))
-                        throw new IOException("Unexpected Piped response: " + json);
-
-                    JSONArray arr = new JSONObject(json).getJSONArray("audioStreams");
-                    if (arr.isEmpty()) throw new IllegalStateException("No audio streams found via Piped");
-                    JSONObject best = arr.getJSONObject(0);
-                    for (int i = 1; i < arr.length(); i++) {
-                        JSONObject s = arr.getJSONObject(i);
-                        if (s.optInt("bitrate", 0) > best.optInt("bitrate", 0)) best = s;
+                    IOException last = null;
+                    for (String base : PIPED_BASES) {
+                        try {
+                            URL api = new URL(base + "/streams/" + id);
+                            HttpURLConnection conn = (HttpURLConnection) api.openConnection();
+                            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+                            conn.setRequestProperty("Accept", "application/json");
+                            int status = conn.getResponseCode();
+                            InputStream resp = status == HttpURLConnection.HTTP_OK
+                                    ? conn.getInputStream()
+                                    : conn.getErrorStream();
+                            String json = new String(resp.readAllBytes(), StandardCharsets.UTF_8);
+                            if (status != HttpURLConnection.HTTP_OK)
+                                throw new IOException("HTTP " + status + " from " + base + ": " + json);
+                            if (!json.trim().startsWith("{"))
+                                throw new IOException("Unexpected response from " + base + ": " + json);
+                            JSONArray arr = new JSONObject(json).getJSONArray("audioStreams");
+                            if (arr.isEmpty()) throw new IOException("No audio streams via " + base);
+                            JSONObject best = arr.getJSONObject(0);
+                            for (int i = 1; i < arr.length(); i++) {
+                                JSONObject s = arr.getJSONObject(i);
+                                if (s.optInt("bitrate", 0) > best.optInt("bitrate", 0)) best = s;
+                            }
+                            audioUrl = best.getString("url");
+                            suffix   = best.optString("format", best.optString("container", "m4a"));
+                            last = null;
+                            break;
+                        } catch (IOException e) {
+                            last = e;
+                        }
                     }
-                    audioUrl = best.getString("url");
-                    suffix   = best.optString("format", best.optString("container", "m4a"));
+                    if (audioUrl == null) throw last != null ? last : new IOException("Piped fallback failed");
+
                 }
 
                 // download
