@@ -105,6 +105,9 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
             private static final Pattern YT_ID_PATTERN = Pattern.compile("(?<=v=)[^&]+|(?<=be/)[^?&]+", Pattern.CASE_INSENSITIVE);
             private static final String[] PIPED_BASES = {
                     "https://pipedapi.kavin.rocks",
+
+                    "https://pipedapi.r001.workers.dev",
+                    "https://pipedapi.adminforge.de"
                     "https://piped.video/api/v1"
             };
 
@@ -438,18 +441,24 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
                     IOException last = null;
                     for (String base : PIPED_BASES) {
                         try {
-                            URL api = new URL(base + "/streams/" + id);
+
+                            URL api = new URL(base + "/api/v1/streams/" + id);
                             HttpURLConnection conn = (HttpURLConnection) api.openConnection();
+                            conn.setConnectTimeout(5000);
+                            conn.setReadTimeout(5000);
+
                             conn.setRequestProperty("User-Agent", "Mozilla/5.0");
                             conn.setRequestProperty("Accept", "application/json");
                             int status = conn.getResponseCode();
                             InputStream resp = status == HttpURLConnection.HTTP_OK
                                     ? conn.getInputStream()
                                     : conn.getErrorStream();
+
+                            String ctype = conn.getContentType();
                             String json = new String(resp.readAllBytes(), StandardCharsets.UTF_8);
                             if (status != HttpURLConnection.HTTP_OK)
                                 throw new IOException("HTTP " + status + " from " + base + ": " + json);
-                            if (!json.trim().startsWith("{"))
+                            if (ctype == null || !ctype.contains("application/json"))
                                 throw new IOException("Unexpected response from " + base + ": " + json);
                             JSONArray arr = new JSONObject(json).getJSONArray("audioStreams");
                             if (arr.isEmpty()) throw new IOException("No audio streams via " + base);
