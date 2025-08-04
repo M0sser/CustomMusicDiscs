@@ -466,6 +466,7 @@ public class CustomMusicDiscs extends JavaPlugin implements Listener, TabExecuto
                         }
                     }
                     if (audioUrl == null) throw last != null ? last : new IOException("Piped fallback failed");
+
                 }
 
                 // download
